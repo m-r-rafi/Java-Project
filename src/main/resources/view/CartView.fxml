@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane fx:controller="controller.CartController"
+            xmlns="http://javafx.com/javafx/8"
+            xmlns:fx="http://javafx.com/fxml/1"
+            prefWidth="600" prefHeight="400"
+            style="-fx-background-color:#f0f2f5;">
+
+    <!-- Title bar -->
+    <top>
+        <HBox style="-fx-background-color:#1976D2; -fx-padding:15 20;">
+            <Label text="Your Cart"
+                   style="-fx-text-fill:white; -fx-font-size:18px;"/>
+        </HBox>
+    </top>
+
+    <!-- Cart table -->
+    <center>
+        <VBox spacing="10" style="-fx-padding:15 20; -fx-background-color:white; -fx-background-radius:8;">
+            <TableView fx:id="cartTable" VBox.vgrow="ALWAYS" editable="true">
+                <columns>
+                    <TableColumn fx:id="evtNameCol"  text="Event"     prefWidth="200"/>
+                    <TableColumn fx:id="evtDateCol"  text="Date"      prefWidth="75"/>
+                    <TableColumn fx:id="evtVenueCol" text="Venue"     prefWidth="100"/>
+                    <TableColumn fx:id="evtPriceCol" text="Price"     prefWidth="75"/>
+                    <TableColumn fx:id="qtyCol"      text="Quantity"  prefWidth="75" editable="true"/>
+                    <TableColumn fx:id="subtotalCol" text="Subtotal"  prefWidth="75"/>
+                </columns>
+            </TableView>
+            <Label fx:id="msgLabel" textFill="red"/>
+        </VBox>
+    </center>
+
+    <!-- Action buttons -->
+    <bottom>
+        <HBox spacing="10" alignment="CENTER_RIGHT" style="-fx-padding:10 20;">
+            <children>
+                <Button fx:id="removeBtn"   text="Remove Selected"/>
+                <Button fx:id="updateBtn"   text="Edit Quantity"/>
+                <Button fx:id="checkoutBtn" text="Checkout"
+                        style="-fx-background-color:#1976D2; -fx-text-fill:white;"/>
+                <Button fx:id="backBtn"     text="Back to Events"/>
+            </children>
+        </HBox>
+    </bottom>
+</BorderPane>
