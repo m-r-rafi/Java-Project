@@ -1,16 +1,16 @@
 package controller;
 
-import javafx.collections.FXCollections;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.TreeItemPropertyValueFactory;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import model.Event;
 import model.Model;
-import model.ShowSummary;
 
 import java.io.IOException;
 import java.util.List;
@@ -18,9 +18,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class AdminController {
-    @FXML private TableView<ShowSummary> showsTable;
-    @FXML private TableColumn<ShowSummary, String> titleCol;
-    @FXML private TableColumn<ShowSummary, String> optionsCol;
+    @FXML private TreeTableView<Event> showsTree;
+    @FXML private TreeTableColumn<Event, String> titleCol;
+    @FXML private TreeTableColumn<Event, String> dateCol;
+    @FXML private TreeTableColumn<Event, Void> actionCol;
     @FXML private Button logoutBtn;
 
     private final Stage stage;
@@ -33,54 +34,108 @@ public class AdminController {
 
     @FXML
     public void initialize() {
-        titleCol.setCellValueFactory(c -> c.getValue().titleProperty());
-        optionsCol.setCellValueFactory(c -> c.getValue().optionsProperty());
+        // 1) Parent‐only “Show Title”
+        titleCol.setCellValueFactory(new TreeItemPropertyValueFactory<>("name"));
 
-        // cell factory that wraps text and honors newlines
-        optionsCol.setCellFactory(col -> {
-            TableCell<ShowSummary,String> cell = new TableCell<>();
+        // 2) Child‐only “Date – Venue”
+        dateCol.setCellValueFactory(cell -> {
+            Event ev = cell.getValue().getValue();
+            return new SimpleStringProperty(ev.getDate() + " – " + ev.getVenue());
+        });
+        dateCol.setCellFactory(col -> {
+            TreeTableCell<Event,String> cell = new TreeTableCell<>();
             Text text = new Text();
-            // bind wrapping width to the column’s width minus padding
             text.wrappingWidthProperty().bind(col.widthProperty().subtract(10));
-            // whenever the item changes, update the text
-            cell.itemProperty().addListener((obs, old, nw) -> {
-                text.setText(nw == null ? "" : nw);
-            });
-            // show the Text node as the graphic
+            cell.itemProperty().addListener((obs, old, nw) -> text.setText(nw == null ? "" : nw));
             cell.setGraphic(text);
-            // let the row height expand to fit the text
-            cell.setPrefHeight( TableView.USE_COMPUTED_SIZE );
+            cell.setPrefHeight(Control.USE_COMPUTED_SIZE);
             return cell;
         });
 
-        // load & group as before…
-        List<Event> events = model.getEvents();
-        Map<String,List<Event>> byTitle = events.stream()
+        // 3) Child‐only “Disable/Enable” button
+        actionCol.setCellFactory(col -> new TreeTableCell<Event,Void>() {
+            private final Button btn = new Button();
+            {
+                btn.setOnAction(evt -> {
+                    Event ev = getTreeTableRow().getItem();
+                    boolean now = !ev.isDisabled();
+                    model.setEventDisabled(ev, now);
+                    // next redraw via updateItem() will re‐label
+                    updateItem(null, false);
+                });
+            }
+
+            @Override
+            protected void updateItem(Void unused, boolean empty) {
+                super.updateItem(unused, empty);
+                if (empty) {
+                    setGraphic(null);
+                    return;
+                }
+                TreeItem<Event> ti = getTreeTableRow().getTreeItem();
+                if (ti == null || ti.getValue().getId() == 0) {
+                    // parent or dummy → no button
+                    setGraphic(null);
+                } else {
+                    Event ev = ti.getValue();
+                    btn.setText(ev.isDisabled() ? "Enable" : "Disable");
+                    setGraphic(btn);
+                }
+            }
+        });
+
+        // 4) Build the grouped tree
+        List<Event> all = model.getAllEventsIncludingDisabled();
+        Map<String, List<Event>> byTitle = all.stream()
                 .collect(Collectors.groupingBy(Event::getName));
 
-        var rows = byTitle.entrySet().stream()
-                .map(e -> new ShowSummary(e.getKey(), e.getValue()))
-                .collect(Collectors.toList());
+        TreeItem<Event> root = new TreeItem<>(new Event(0, "", "", "", 0, 0, false));
+        root.setExpanded(true);
+        byTitle.forEach((title, evs) -> {
+            TreeItem<Event> parent = new TreeItem<>(new Event(0, title, "", "", 0, 0, false));
+            parent.setExpanded(true);
+            for (Event e : evs) {
+                parent.getChildren().add(new TreeItem<>(e));
+            }
+            root.getChildren().add(parent);
+        });
 
-        showsTable.setItems(FXCollections.observableArrayList(rows));
-        // 3) logout button → back to login
+        showsTree.setRoot(root);
+        showsTree.setShowRoot(false);
+
+        // 5) Hide the little expand/collapse arrow on every parent row
+        showsTree.setRowFactory(tv -> {
+            TreeTableRow<Event> row = new TreeTableRow<>();
+            row.treeItemProperty().addListener((obs, oldTI, newTI) -> {
+                if (newTI != null && newTI.getValue().getId() == 0) {
+                    // this is one of our dummy “parent” nodes → remove its disclosure node
+                    row.setDisclosureNode(null);
+                }
+            });
+            return row;
+        });
+
+        // 6) Log out
         logoutBtn.setOnAction(e -> {
             try {
-                FXMLLoader loader = new FXMLLoader(
-                        getClass().getResource("/view/LoginView.fxml")
-                );
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/LoginView.fxml"));
                 loader.setControllerFactory(type -> {
                     if (type == controller.LoginController.class) {
                         return new controller.LoginController(stage, model);
                     }
-                    throw new IllegalStateException("Unexpected controller: " + type);
+                    try {
+                        return type.getDeclaredConstructor().newInstance();
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
                 });
-                Parent login = loader.load();
-                stage.setScene(new Scene(login, 500, 300));
+                Parent loginRoot = loader.load();
+                stage.setScene(new Scene(loginRoot, 500, 300));
                 stage.setTitle("Login");
+                stage.show();
             } catch (IOException ex) {
                 new Alert(Alert.AlertType.ERROR,
-                        "Failed to log out:\n" + ex.getMessage(),
+                        "Failed to load login: " + ex.getMessage(),
                         ButtonType.OK).showAndWait();
             }
         });

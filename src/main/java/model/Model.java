@@ -6,15 +6,17 @@ import dao.OrderDao;
 import dao.OrderDaoImpl;
 import dao.UserDao;
 import dao.UserDaoImpl;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.time.LocalDateTime;
+import java.util.stream.Collectors;
 
 public class Model {
 	private final UserDao  userDao   = new UserDaoImpl();
@@ -22,7 +24,7 @@ public class Model {
 	private final OrderDao orderDao  = new OrderDaoImpl();
 
 	private User currentUser;
-	private List<Event> events;
+	private List<Event> events = new ArrayList<>();
 	private final List<CartItem> cart = new ArrayList<>();
 
 	// next order number (1 -> "0001", etc.), computed from existing orders
@@ -34,10 +36,10 @@ public class Model {
 		eventDao.setup();
 		orderDao.setup();
 
-		// load events from DB
+		// load ALL events (including disabled) from the database
 		events = eventDao.getAll();
 
-		// figure out what the next order number should be
+		// compute next order number
 		int maxNum = 0;
 		for (Order o : orderDao.getAllOrders()) {
 			maxNum = Math.max(maxNum, o.getOrderNumber());
@@ -45,22 +47,28 @@ public class Model {
 		nextOrderNumber = maxNum + 1;
 	}
 
-	// --- User, Event, Cart accessors ---
-	public UserDao getUserDao()           { return userDao; }
-	public User   getCurrentUser()        { return currentUser; }
-	public void   setCurrentUser(User u)  { this.currentUser = u; }
-	public List<Event>    getEvents()     { return events; }
-	public List<CartItem> getCart()       { return cart; }
+	// --- User & Event accessors ---
 
-	/**
-	 * Return all past orders (newest first).
-	 * This is the method your OrdersController needs.
-	 */
-	public List<Order> getOrders() throws SQLException {
-		return orderDao.getAllOrders();
+	public UserDao getUserDao()           { return userDao;      }
+	public User   getCurrentUser()        { return currentUser;  }
+	public void   setCurrentUser(User u)  { this.currentUser = u;}
+
+	/** For normal users: only _enabled_ events */
+	public List<Event> getEvents() {
+		return events.stream()
+				.filter(e -> !e.isDisabled())
+				.collect(Collectors.toList());
+	}
+
+	/** For admin: all events, including disabled ones */
+	public List<Event> getAllEventsIncludingDisabled() {
+		return new ArrayList<>(events);
 	}
 
 	// --- Cart operations ---
+
+	public List<CartItem> getCart() { return cart; }
+
 	public void addToCart(Event e, int qty) {
 		for (CartItem ci : cart) {
 			if (ci.getEvent().equals(e)) {
@@ -126,7 +134,6 @@ public class Model {
 			}
 		}
 
-
 		// record & persist the order
 		Order order = new Order(nextOrderNumber, LocalDateTime.now(), snapshot, total);
 		try {
@@ -138,26 +145,17 @@ public class Model {
 
 		cart.clear();
 	}
+
 	/**
-	 * Export all orders to a text file in the user-specified location.
-	 * Format:
-	 * Order Number: ####
-	 * Date & Time: YYYY-MM-DD HH:MM:SS
-	 * Items:
-	 *   Event A x2
-	 *   Event B x1
-	 * Total: $123.45
-	 *
-	 * @param file the file to write to
+	 * Persist all orders to a text file.
 	 */
 	public void exportOrders(File file) throws IOException {
 		List<Order> orders;
 		try {
 			orders = orderDao.getAllOrders();
 		} catch (SQLException ex) {
-			throw new IOException("Failed to load orders for export", ex);
+			throw new IOException("Failed to load orders", ex);
 		}
-
 		DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 		try (FileWriter fw = new FileWriter(file)) {
 			for (Order o : orders) {
@@ -165,14 +163,30 @@ public class Model {
 				fw.write("Date & Time  : " + o.getTimestamp().format(fmt) + "\n");
 				fw.write("Items:\n");
 				for (CartItem ci : o.getItems()) {
-					fw.write("  • "
-							+ ci.getEvent().getName()
-							+ " — "
-							+ ci.getQuantity()
-							+ " seats\n");
+					fw.write("  • " + ci.getEvent().getName()
+							+ " — " + ci.getQuantity() + " seats\n");
 				}
 				fw.write(String.format("Total        : $%.2f%n%n", o.getTotal()));
 			}
 		}
+	}
+
+	// ─── Admin-only methods ────────────────────────────────────────────────────
+
+	/**
+	 * Toggle a specific event’s disabled flag and persist to the DB immediately.
+	 */
+	public void setEventDisabled(Event e, boolean disabled) {
+		e.setDisabled(disabled);
+		try {
+			eventDao.updateDisabled(e.getId(), disabled);
+		} catch (SQLException ex) {
+			throw new RuntimeException("Failed to persist disabled flag", ex);
+		}
+	}
+
+	/** Return all past orders (newest first). */
+	public List<Order> getOrders() throws SQLException {
+		return orderDao.getAllOrders();
 	}
 }

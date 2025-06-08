@@ -56,6 +56,7 @@ public class LoginController {
 					stage.setScene(new Scene(root, 700, 500));
 					stage.setTitle("Admin Dashboard");
 				} catch (IOException ex) {
+					ex.printStackTrace();
 					new Alert(Alert.AlertType.ERROR,
 							"Failed to load Admin dashboard:\n" + ex.getMessage(),
 							ButtonType.OK)
