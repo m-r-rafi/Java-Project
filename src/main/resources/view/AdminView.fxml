@@ -5,6 +5,7 @@
 <?import javafx.scene.control.TreeTableView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
 
 <BorderPane xmlns="http://javafx.com/javafx/8"
             xmlns:fx="http://javafx.com/fxml/1"
@@ -12,6 +13,7 @@
             prefWidth="700" prefHeight="500"
             style="-fx-background-color:#f0f2f5;">
 
+    <!-- Top bar -->
     <top>
         <HBox style="-fx-background-color:#1976D2; -fx-padding:15 20;">
             <children>
@@ -21,24 +23,33 @@
         </HBox>
     </top>
 
+    <!-- Center: add/edit/delete buttons above the tree -->
     <center>
-        <TreeTableView fx:id="showsTree"
-                       prefWidth="680" prefHeight="420"
-                       showRoot="false">
-            <columns>
-                <TreeTableColumn fx:id="titleCol"
-                                 text="Show Title"
-                                 prefWidth="200"/>
-                <TreeTableColumn fx:id="dateCol"
-                                 text="Date – Venue"
-                                 prefWidth="360"/>
-                <TreeTableColumn fx:id="actionCol"
-                                 text="Disable?"
-                                 prefWidth="80"/>
-            </columns>
-        </TreeTableView>
+        <VBox spacing="5" style="-fx-padding:10;">
+            <HBox spacing="10">
+                <Button fx:id="btnAdd"    text="Add Event"/>
+                <Button fx:id="btnEdit"   text="Edit Selected"/>
+                <Button fx:id="btnDelete" text="Delete Selected"/>
+            </HBox>
+            <TreeTableView fx:id="showsTree"
+                           prefWidth="680" prefHeight="420"
+                           showRoot="false">
+                <columns>
+                    <TreeTableColumn fx:id="titleCol"
+                                     text="Show Title"
+                                     prefWidth="200"/>
+                    <TreeTableColumn fx:id="dateCol"
+                                     text="Date – Venue"
+                                     prefWidth="360"/>
+                    <TreeTableColumn fx:id="actionCol"
+                                     text="Disable?"
+                                     prefWidth="80"/>
+                </columns>
+            </TreeTableView>
+        </VBox>
     </center>
 
+    <!-- Bottom Logout -->
     <bottom>
         <HBox alignment="CENTER_RIGHT" style="-fx-padding:10 20;">
             <children>

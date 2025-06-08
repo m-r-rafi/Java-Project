@@ -15,5 +15,10 @@ public interface EventDao {
     /** Update the remainingSeats for a single event */
     void updateRemainingSeats(int eventId, int seatsLeft) throws SQLException;
     void updateDisabled(int eventId, boolean disabled) throws SQLException;
+    // dao/EventDao.java
+    void insertEvent(Event e) throws SQLException;
+    void deleteEvent(int eventId) throws SQLException;
+    void updateEvent(Event e) throws SQLException;
+
 
 }

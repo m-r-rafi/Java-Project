@@ -122,4 +122,51 @@ public class EventDaoImpl implements EventDao {
             pst.executeUpdate();
         }
     }
+
+    // dao/EventDaoImpl.java
+
+    @Override
+    public void insertEvent(Event e) throws SQLException {
+        String sql = "INSERT INTO " + TABLE +
+                " (name,date,venue,price,remainingSeats,disabled) VALUES (?,?,?,?,?,0)";
+        try (PreparedStatement pst = Database.getConnection().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            pst.setString(1, e.getName());
+            pst.setString(2, e.getDate());
+            pst.setString(3, e.getVenue());
+            pst.setDouble(4, e.getPrice());
+            pst.setInt(5, e.getRemainingSeats());
+            pst.executeUpdate();
+            try (ResultSet rs = pst.getGeneratedKeys()) {
+                if (rs.next()) {
+                    e.idProperty().set(rs.getInt(1));
+                }
+            }
+        }
+    }
+
+    @Override
+    public void deleteEvent(int eventId) throws SQLException {
+        String sql = "DELETE FROM " + TABLE + " WHERE id = ?";
+        try (PreparedStatement pst = Database.getConnection().prepareStatement(sql)) {
+            pst.setInt(1, eventId);
+            pst.executeUpdate();
+        }
+    }
+
+    @Override
+    public void updateEvent(Event e) throws SQLException {
+        String sql = "UPDATE " + TABLE +
+                " SET name=?, date=?, venue=?, price=?, remainingSeats=?" +
+                " WHERE id=?";
+        try (PreparedStatement pst = Database.getConnection().prepareStatement(sql)) {
+            pst.setString(1, e.getName());
+            pst.setString(2, e.getDate());
+            pst.setString(3, e.getVenue());
+            pst.setDouble(4, e.getPrice());
+            pst.setInt(5, e.getRemainingSeats());
+            pst.setInt(6, e.getId());
+            pst.executeUpdate();
+        }
+    }
+
 }

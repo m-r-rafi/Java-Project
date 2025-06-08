@@ -189,4 +189,55 @@ public class Model {
 	public List<Order> getOrders() throws SQLException {
 		return orderDao.getAllOrders();
 	}
+	// model/Model.java
+
+	/** Add a brand-new event (check for dupes first). */
+	public void addEvent(Event e) {
+		// duplicate check: same name/venue/date?
+		boolean dup = events.stream()
+				.anyMatch(o -> o.getName().equals(e.getName())
+						&& o.getVenue().equals(e.getVenue())
+						&& o.getDate().equals(e.getDate()));
+		if (dup) throw new IllegalArgumentException("That event already exists");
+		try {
+			eventDao.insertEvent(e);
+			events.add(e);
+		} catch (SQLException ex) {
+			throw new RuntimeException(ex);
+		}
+	}
+
+	/** Remove an event (will wipe historical bookings in DB!). */
+	public void deleteEvent(Event e) {
+		try {
+			eventDao.deleteEvent(e.getId());
+			events.removeIf(o -> o.getId() == e.getId());
+		} catch (SQLException ex) {
+			throw new RuntimeException(ex);
+		}
+	}
+
+	/** Edit an existing event’s details. */
+	public void editEvent(Event updated) {
+		// duplicate check against others
+		boolean dup = events.stream()
+				.anyMatch(o -> o.getId() != updated.getId()
+						&& o.getName().equals(updated.getName())
+						&& o.getVenue().equals(updated.getVenue())
+						&& o.getDate().equals(updated.getDate()));
+		if (dup) throw new IllegalArgumentException("That event would collide with an existing one");
+		try {
+			eventDao.updateEvent(updated);
+			// update in‐memory
+			for (int i=0; i<events.size(); i++) {
+				if (events.get(i).getId() == updated.getId()) {
+					events.set(i, updated);
+					break;
+				}
+			}
+		} catch (SQLException ex) {
+			throw new RuntimeException(ex);
+		}
+	}
+
 }
